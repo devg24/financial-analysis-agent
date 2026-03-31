@@ -1,6 +1,8 @@
-langchain
-langchain-openai
-openai
-pandas
-yfinance
-python-dotenv
+# AI Orchestration & Agent Framework
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-openai>=0.1.0
+langgraph>=0.0.60
+yfinance>=0.2.40
+pandas>=2.2.0
+python-dotenv>=1.0.0
