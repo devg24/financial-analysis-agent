@@ -2,12 +2,13 @@ import os
 import yfinance as yf
 import pandas as pd
 from dotenv import load_dotenv
-
-# LangChain imports
 import langchain
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
+from sec_tools import get_company_concept_xbrl
+from rag_tools import search_10k_filings
+from sentiment_tools import get_recent_news
 
 langchain.debug = True
 
@@ -56,20 +57,36 @@ def main():
         temperature=0
     )
     
-    tools = [get_stock_metrics]
+    tools = [get_stock_metrics, get_company_concept_xbrl, search_10k_filings, get_recent_news]
     llm_with_tools = llm.bind_tools(tools)
     available_tools = {t.name: t for t in tools}
     
     print("--- Phase 1: Hardware-Agnostic Agent Initialized ---")
     print("Type 'exit' to quit.\n")
     
-# 4. The Tool-Calling Loop
+    # 4. The Tool-Calling Loop
     while True:
         user_query = input("\nAsk about a stock: ")
         if user_query.lower() == 'exit':
             break
             
-        messages = [HumanMessage(content=user_query)]
+        # --- THE SYSTEM PROMPT ---
+        # This forces the 8B model to behave like a strict API router
+        system_instruction = """
+                You are an elite autonomous financial AI agent. 
+                You have access to highly specialized tools for quantitative and qualitative analysis.
+                CRITICAL RULES:
+                1. If the user asks for multiple pieces of data, you MUST call the relevant tools to get the data.
+                2. NEVER output raw JSON tool-calls as text. You must execute the tools using your function-calling capabilities.
+                3. Do not guess or hallucinate financial numbers. If you don't know, use a tool.
+                4. If you use the 'get_recent_news' tool, you MUST synthesize the headlines and provide a 'Sentiment Score' from -1.0 (Highly Bearish) to 1.0 (Highly Bullish), along with a 1-sentence justification.
+                """
+        
+        # Initialize the conversation with the System Prompt, then the User's Query
+        messages = [
+            SystemMessage(content=system_instruction),
+            HumanMessage(content=user_query)
+        ]
         
         # Step A: The LLM processes the query and decides if it needs a tool
         response = llm_with_tools.invoke(messages)
@@ -92,14 +109,9 @@ def main():
         # Step B: Check if the LLM requested a tool execution
         if response.tool_calls:
             for tool_call in response.tool_calls:
-                # Dynamically find the right tool 
                 selected_tool = available_tools[tool_call["name"]]
-                
-                # Execute the tool
                 tool_msg = selected_tool.invoke(tool_call)
                 messages.append(tool_msg)
-            
-            # Step C: Send the raw tool output back to the LLM to synthesize an answer
             final_response = llm_with_tools.invoke(messages)
             print(f"\nAgent: {final_response.content}")
         else:

@@ -1,14 +1,19 @@
-# Environments
-.env
-.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+agent_env/
 venv/
 env/
 
-# Python Cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Environment Variables
+.env
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
+# Vector Databases & Local AI Models
+chroma_db/
+*.bin
+*.pt
+*.safetensors
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
