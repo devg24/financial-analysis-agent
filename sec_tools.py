@@ -63,12 +63,24 @@ def get_company_concept_xbrl(ticker: str, concept: str) -> str:
     CRITICAL INSTRUCTIONS:
     1. 'ticker': Must be the official uppercase ticker symbol (e.g., AAPL).
     2. 'concept': You MUST use one of these exact SEC XBRL concepts (case-sensitive):
-       - 'NetIncomeLoss' (for Net Income / Profit)
-       - 'Revenues' (for Total Revenue / Sales)
-       - 'Assets' (for Total Assets)
-       - 'Liabilities' (for Total Liabilities)
-       - 'OperatingIncomeLoss' (for Operating Income)
-    Do not guess concepts. Only use the ones listed above.
+       -- Core Size --
+       - 'Revenues' (Total Revenue / Sales)
+       - 'NetIncomeLoss' (Net Income / Profit)
+       - 'Assets' (Total Assets)
+       - 'Liabilities' (Total Liabilities)
+       
+       -- Margins & Liquidity --
+       - 'GrossProfit' (Revenue minus Cost of Goods Sold)
+       - 'OperatingIncomeLoss' (Operating Income)
+       - 'AssetsCurrent' (Short-term assets like cash/inventory)
+       - 'LiabilitiesCurrent' (Short-term debt)
+       
+       -- Cash Flow & Valuation --
+       - 'NetCashProvidedByUsedInOperatingActivities' (Operating Cash Flow)
+       - 'PaymentsToAcquirePropertyPlantAndEquipment' (Capital Expenditures / CapEx)
+       - 'EntityCommonStockSharesOutstanding' (Total shares outstanding)
+       
+    Do not guess concepts. Only use the exact strings listed above.
     """
     try:
         cik = get_cik_from_ticker(ticker)
