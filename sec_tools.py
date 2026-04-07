@@ -1,31 +1,24 @@
 import requests
-import json
-import re
 import pandas as pd
 from langchain_core.tools import tool
+from datetime import datetime
+from typing import Literal
+from pydantic import BaseModel, Field
+
 
 
 USER_AGENT = "Dev Goyal devgoyal9031@gmail.com" # Update this to your real email!
 HEADERS = {"User-Agent": USER_AGENT}
 
 def get_cik_from_ticker(ticker: str) -> str:
-    """Translates a ticker symbol to a 10-digit padded CIK. We need the CIK to query the SEC's EDGAR system for filings."""
     ticker = ticker.upper()
     url = "https://www.sec.gov/files/company_tickers.json"
-    
-    print(f"[System: Fetching CIK for {ticker} from SEC...]")
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
-    
     data = response.json()
-    
-    # Iterate through the SEC ticker dictionary
     for _, company_info in data.items():
         if company_info['ticker'] == ticker:
-            cik = str(company_info['cik_str'])
-            # The SEC submissions API requires the CIK to be padded to 10 digits with leading zeros
-            return cik.zfill(10)
-            
+            return str(company_info['cik_str']).zfill(10)
     raise ValueError(f"Ticker {ticker} not found in SEC database.")
 
 def get_latest_10k_url(ticker: str) -> str:
@@ -55,8 +48,31 @@ def get_latest_10k_url(ticker: str) -> str:
         
     except Exception as e:
         return f"Error: {str(e)}"
+# 1. Define the strict Pydantic Schema
+class XBRLConceptInput(BaseModel):
+    ticker: str = Field(
+        ..., 
+        description="The official uppercase ticker symbol (e.g., AAPL)."
+    )
+    concept: Literal[
+        "Revenues", 
+        "NetIncomeLoss", 
+        "Assets", 
+        "Liabilities",
+        "GrossProfit",
+        "OperatingIncomeLoss",
+        "AssetsCurrent",
+        "LiabilitiesCurrent",
+        "NetCashProvidedByUsedInOperatingActivities",
+        "PaymentsToAcquirePropertyPlantAndEquipment",
+        "EntityCommonStockSharesOutstanding"
+    ] = Field(
+        ..., 
+        description="You MUST select the exact SEC XBRL concept from this list that best matches the user's request."
+    )
 
-@tool
+# 2. Bind the schema to the tool
+@tool(args_schema=XBRLConceptInput)
 def get_company_concept_xbrl(ticker: str, concept: str) -> str:
     """
     Fetches official SEC accounting metrics for a company across recent quarters.
@@ -84,41 +100,46 @@ def get_company_concept_xbrl(ticker: str, concept: str) -> str:
     """
     try:
         cik = get_cik_from_ticker(ticker)
-        
-        # Using the company-concept API endpoint you discovered
         url = f"https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/us-gaap/{concept}.json"
         
-        print(f"[System: Fetching XBRL data for {concept} from SEC...]")
+        print(f"[System: Fetching latest {concept} for {ticker}...]")
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
-        
         data = response.json()
         
-        # XBRL data can be messy (reported in different currencies). We'll grab the USD array.
         if "USD" not in data.get("units", {}):
             return f"No USD data found for {concept}."
             
-        usd_data = data["units"]["USD"]
+        # 1. Convert to DataFrame
+        df = pd.DataFrame(data["units"]["USD"])
         
-        # Load into a Pandas DataFrame to easily filter and sort
-        df = pd.DataFrame(usd_data)
+        # 2. Convert date strings to datetime objects
+        df['end'] = pd.to_datetime(df['end'])
+        df['filed'] = pd.to_datetime(df['filed'])
         
-        # Filter for only standard quarterly (10-Q) or annual (10-K) data (usually ~90 or 365 days)
-        # We also drop duplicates in case a company amended a filing
-        df = df[df['form'].isin(['10-Q', '10-K'])]
+        # 3. Filter for standard filings to avoid "preliminary" noise
+        df = df[df['form'].isin(['10-Q', '10-K', '10-K/A', '10-Q/A'])]
+        
+        # 4. CRITICAL: Deduplicate. 
+        # If the same period ('end') is reported multiple times, take the most recently filed one.
+        df = df.sort_values(by=['end', 'filed'], ascending=[False, False])
         df = df.drop_duplicates(subset=['end'])
         
-        # Sort by date and grab the 4 most recent periods
-        df['end'] = pd.to_datetime(df['end'])
-        df = df.sort_values(by='end', ascending=False).head(4)
+        # 5. Filter for the last 2 years
+        current_year = datetime.now().year
+        df = df[df['end'].dt.year >= (current_year - 2)]
         
-        # Format the output for the LLM
-        summary = f"Recent {concept} data for {ticker}:\n"
+        # 6. Take top 4 most recent periods
+        df = df.head(4)
+        
+        if df.empty:
+            return f"No recent (2024-2026) {concept} data available for {ticker}."
+        
+        summary = f"Latest official {concept} data for {ticker}:\n"
         for _, row in df.iterrows():
-            # Format the large numbers nicely (e.g., $1,000,000)
             formatted_val = f"${int(row['val']):,}"
             date_str = row['end'].strftime('%Y-%m-%d')
-            summary += f"- {date_str} (Form {row['form']}): {formatted_val}\n"
+            summary += f"- Period End: {date_str} (Filed: {row['filed'].strftime('%Y-%m-%d')}): {formatted_val}\n"
             
         return summary
 
@@ -127,7 +148,7 @@ def get_company_concept_xbrl(ticker: str, concept: str) -> str:
 
 # Quick test block for the new function
 if __name__ == "__main__":
-    test_ticker = "AAPL"
+    test_ticker = "MSFT"
     
     # Test 1: URL fetcher
     try:
@@ -137,8 +158,5 @@ if __name__ == "__main__":
         print(f"URL Fetch Failed: {e}")
         
     # Test 2: XBRL fetcher
-    try:
-        xbrl_data = get_company_concept_xbrl(test_ticker, "NetIncomeLoss")
-        print("\n" + xbrl_data)
-    except Exception as e:
-        print(f"XBRL Fetch Failed: {e}")
+    test_concept = "NetIncomeLoss"
+    print(get_company_concept_xbrl.invoke({"ticker": test_ticker, "concept": test_concept}))

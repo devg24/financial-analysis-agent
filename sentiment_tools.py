@@ -7,7 +7,7 @@ def get_recent_news(ticker: str) -> str:
     """
     Fetches the most recent news headlines for a given stock ticker.
     CRITICAL INSTRUCTIONS:
-    1. 'ticker': The official uppercase ticker symbol (e.g., AAPL).
+    1. 'ticker': Must be the official uppercase ticker symbol (e.g., AAPL). DO NOT pass the full company name.
     2. Use this tool to gauge current market sentiment, breaking news, and short-term catalysts.
     """
     try:
