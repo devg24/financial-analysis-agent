@@ -5,10 +5,10 @@ from langchain_core.tools import tool
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-# Updated import to avoid the deprecation warning in your logs
 from langchain_chroma import Chroma 
 from sec_tools import get_latest_10k_url, HEADERS 
 import re
+from langchain_core.messages import SystemMessage, HumanMessage
 
 # Initialize embeddings once
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -71,7 +71,7 @@ def build_10k_vector_db(ticker: str) -> Chroma:
     return vector_db
 
 @tool
-def search_10k_filings(ticker: str, query: str) -> str:
+def search_10k_filings(ticker: str, query: str, llm=None) -> str:
     """Searches 10-K and returns a CONCISE summary of findings."""
     try:
         db = build_10k_vector_db(ticker)
@@ -85,8 +85,15 @@ def search_10k_filings(ticker: str, query: str) -> str:
         
         # We can use the LLM to 'pre-process' the data so the Supervisor stays clean
         # Note: You'll need to pass the 'llm' object into this tool or initialize a local one
-        return f"SUMMARY OF 10-K FINDINGS FOR {ticker} ({query}):\n\n{context}"
-        
+        if llm:
+            response = llm.invoke([
+                SystemMessage(content="You are a helpful assistant."),
+                HumanMessage(content=f"Summarize the following 10-K findings for {ticker} regarding {query}:\n\n{context}")
+            ])
+            return response.content
+        else:
+            return f"SUMMARY OF 10-K FINDINGS FOR {ticker} ({query}):\n\n{context}"
+
     except Exception as e:
         return f"Error: {str(e)}"
 
