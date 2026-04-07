@@ -1,8 +1,8 @@
-# Autonomous Financial AI Agent 📈🤖
+# Autonomous Financial AI Agent 
 
 An asynchronous, multi-agent LLM pipeline designed to automate quantitative financial research, fundamental document synthesis, and real-time news sentiment analysis. Built entirely with open-source models, this system leverages graph-based agentic workflows to reason through market data, corporate filings, and daily news cycles.
 
-## 🏗 Architecture & Tech Stack
+## Architecture & Tech Stack
 
 * **Orchestration:** [LangGraph](https://python.langchain.com/docs/langgraph) / LangChain
 * **Local Inference (Apple MPS):** Ollama (Llama-3.1-8B-Instruct)
@@ -15,20 +15,20 @@ An asynchronous, multi-agent LLM pipeline designed to automate quantitative fina
 
 ---
 
-## 🧠 The Planner-Executor Model
+##  The Planner-Executor Model
 
 This project abandons fragile "chat loops" in favor of a robust, deterministic **State Machine** architecture:
 
 1. **The Planner:** Analyzes the user's query and generates a strict JSON array of required tasks.
 2. **The Supervisor:** A Python-controlled traffic cop that reads the task queue and routes work to the appropriate specialist agents without LLM cognitive overload.
 3. **The Workers:** Three highly specialized LangChain React Agents:
-   * 📊 **Quant_Agent:** Fetches live pricing, volume, and volatility metrics.
-   * 🏛️ **Fundamental_Agent:** Fetches live SEC XBRL accounting metrics and performs RAG (Retrieval-Augmented Generation) on 10-K filings for qualitative insights.
-   * 📰 **Sentiment_Agent:** Analyzes recent news headlines to compute market sentiment scores.
+   * **Quant_Agent:** Fetches live pricing, volume, and volatility metrics.
+   * **Fundamental_Agent:** Fetches live SEC XBRL accounting metrics and performs RAG (Retrieval-Augmented Generation) on 10-K filings for qualitative insights.
+   * **Sentiment_Agent:** Analyzes recent news headlines to compute market sentiment scores.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 * **Zero-Hallucination Guardrails:** Worker nodes programmatically verify that a `ToolMessage` was successfully executed before allowing the LLM to output an answer. "Creative guesses" are blocked.
 * **Advanced SEC XBRL Parsing:** Handles the messy reality of SEC EDGAR data with Pandas-driven datetime sorting, deduplication, and recursive GAAP tag fallbacks (e.g., gracefully handling `RevenueFromContract...` vs. `Revenues`).
@@ -36,7 +36,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 
 ---
 
-## 🗺 Development Milestones
+## Development Milestones
 
 ### Phase 1: Foundation & Hardware Agnostic Setup ✅
 *Objective: Establish a local development environment that seamlessly ports to cloud GPUs.*
@@ -74,7 +74,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 1. **Clone the repository:**
    ```bash
@@ -103,7 +103,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
    python main.py
    ```
 
-## 🛠️ Usage Examples
+## Usage Examples
 
 The agent can handle single metrics, multi-ticker comparisons, and qualitative deep dives:
 
