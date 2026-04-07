@@ -26,21 +26,7 @@ from typing import Set
 langchain.debug = True
 load_dotenv()
 
-system_prompt = """You are a routing supervisor for a financial AI system.
 
-Agents:
-- Quant_Agent: stock price, volume, highs, lows
-- Fundamental_Agent: SEC 10-K filings, revenue, net income, balance sheet
-- Sentiment_Agent: news headlines, market sentiment, recent events
-
-STRICT RULES (follow in order):
-1. If the user asked about price/volume AND Quant_Agent has NOT answered → output Quant_Agent
-2. If the user asked about sentiment/news AND Sentiment_Agent has NOT answered → output Sentiment_Agent  
-3. If the user asked about filings/fundamentals AND Fundamental_Agent has NOT answered → output Fundamental_Agent
-4. If ALL required agents have answered → output FINISH
-5. If the question has nothing to do with stocks or finance → output REJECT
-
-Output ONLY one word. No explanation."""
 @tool
 def get_stock_metrics(ticker: str) -> str:
     """
@@ -81,8 +67,8 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     next: str
     steps: Annotated[int, operator.add]
-    completed_tasks: Annotated[Set[str], merge_sets]  # e.g. {"Quant_AAPL", "Quant_MSFT"}
-    pending_tasks: list  # queue of {agent, ticker, description} dicts
+    completed_tasks: Annotated[Set[str], merge_sets]  
+    pending_tasks: list  
 
 # Define the routing options for the Supervisor
 members = ["Quant_Agent", "Fundamental_Agent", "Sentiment_Agent"]
@@ -193,8 +179,7 @@ example output:
 
 
 # --- THE PYTHON-CONTROLLED SUPERVISOR NODE ---
-def create_supervisor_node(llm):
-    
+def create_supervisor_node(llm):    
     def supervisor_function(state: AgentState):
         steps = state.get("steps", 0)
         if steps >= 10:
@@ -224,7 +209,6 @@ def create_supervisor_node(llm):
 def build_financial_graph(llm):
     workflow = StateGraph(AgentState)
     
-    # 1. Create the Workers using the new create_agent API
     quant_agent = create_agent(
         model=llm, 
         tools=[get_stock_metrics], 
@@ -232,7 +216,7 @@ def build_financial_graph(llm):
             "You are a Quantitative Analyst. ONLY answer the quantitative part of the user's request. "
             "NEVER output raw JSON. Use your tools natively."
         ),
-        name="Quant_Agent" # Utilizing the parameter from your docs!
+        name="Quant_Agent" 
     )
     
     fundamental_agent = create_agent(
@@ -262,8 +246,6 @@ def build_financial_graph(llm):
     workflow.add_node("Planner", create_planner_node(llm))
     workflow.add_node("Supervisor", create_supervisor_node(llm))
     
-    # We still use our wrapper to forcefully inject the AIMessage name 
-    # so the 8B Supervisor clearly knows which agent is speaking.
     workflow.add_node("Quant_Agent", make_worker_node(quant_agent, "Quant_Agent"))
     workflow.add_node("Fundamental_Agent", make_worker_node(fundamental_agent, "Fundamental_Agent"))
     workflow.add_node("Sentiment_Agent", make_worker_node(sentiment_agent, "Sentiment_Agent"))
@@ -318,8 +300,7 @@ def main():
             "pending_tasks": []
         }
                 
-        # Invoke the graph
-        # We use stream() to watch the agents pass the state back and forth
+        # Invoke the graph and stream outputs
         print("\n--- Agent Workflow Started ---")
         for output in app.stream(initial_state):
             for node_name, state_update in output.items():
