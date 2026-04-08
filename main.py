@@ -118,6 +118,7 @@ GOLDEN RULE: Never assume or guess a number.
 
 CRITICAL AGENT CAPABILITY MAPPING:
 1. Quant_Agent: ONLY use for current stock price, trading volume, and 52-week high/lows.
+   => GROUPING RULE: If the user asks for multiple price/volume metrics for the SAME ticker, group them into EXACTLY ONE Quant_Agent task. Do NOT make separate tasks for price and volume.
 2. Sentiment_Agent: ONLY use for recent news headlines and market sentiment scores.
 3. Fundamental_Agent: Use for TWO things:
    - SEC Financial Metrics (Revenue, Net Income, Margins, Cash Flow).
@@ -213,8 +214,10 @@ def build_financial_graph(llm):
         model=llm, 
         tools=[get_stock_metrics], 
         system_prompt=(
-            "You are a Quantitative Analyst. ONLY answer the quantitative part of the user's request. "
-            "NEVER output raw JSON. Use your tools natively."
+            "You are a Quantitative Analyst. "
+            "GOLDEN RULE: Output ONLY the requested data values. "
+            "NEVER use introductory phrases like 'Here is the data' or 'Alternatively'. "
+            "NEVER describe the tool you used. Just print the numbers."
         ),
         name="Quant_Agent" 
     )
@@ -223,12 +226,13 @@ def build_financial_graph(llm):
         model=llm, 
         tools=[search_10k_filings, get_company_concept_xbrl], 
         system_prompt=(
-            "You are a Fundamental Analyst. ONLY answer fundamental questions. "
-            "NEVER output raw JSON. Use your tools natively."
+            "You are a Fundamental Analyst. "
+            "GOLDEN RULE: You must output the EXACT DATA or TEXT returned by your tools. "
+            "Do NOT explain how the tools work or what they do. "
+            "Just answer the user's question using the fetched data."
         ),
         name="Fundamental_Agent"
     )
-    
     sentiment_agent = create_agent(
             model=llm, 
             tools=[get_recent_news], 
