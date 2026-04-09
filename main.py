@@ -193,7 +193,7 @@ def create_supervisor_node(llm):
         remaining = [t for t in pending if t["task_id"] not in completed]
         
         if not remaining:
-            print("-> All tasks complete. Routing to FINISH.")
+            print("-> All tasks complete. Routing to Summarizer.")
             return {"next": "FINISH", "steps": 1}
         
         next_task = remaining[0]
@@ -205,6 +205,64 @@ def create_supervisor_node(llm):
     
     return supervisor_function
 
+
+def create_summarizer_node(llm):
+    """
+    Compiles specialist worker outputs (and any early Supervisor refusal) into one
+    unified Investment Memo. Read-only synthesis: no tools.
+    """
+    summarizer_system = """You are a senior investment analyst drafting an internal **Investment Memo** for colleagues.
+
+You will receive the user's original question and verbatim outputs from specialist agents (Quant_Agent, Fundamental_Agent, Sentiment_Agent), or a single clarification/refusal if no research ran.
+
+Write the memo using this structure and markdown headings:
+
+# Investment Memo
+## Executive Summary
+2–4 sentences answering the user in plain language.
+
+## Key Facts & Data
+Bullet points. Use ONLY numbers, metrics, and quotes that appear in the specialist outputs. If a section had no data, say "No quantitative/fundamental/sentiment data provided" as appropriate.
+
+## Risks, Sentiment, and Context
+Integrate fundamental and sentiment findings when present. If missing, state that briefly.
+
+## Caveats
+Note missing specialists, tool errors, or "unauthorized" / ERROR lines exactly as reported—do not soften them.
+
+Rules:
+- Do NOT invent tickers, prices, filings, or sentiment scores not present in the inputs.
+- Do NOT cite tool names; write for a portfolio manager reader.
+- Keep the tone professional and concise."""
+
+    def summarizer_function(state: AgentState):
+        user_messages = [m for m in state["messages"] if isinstance(m, HumanMessage)]
+        user_query = user_messages[0].content if user_messages else ""
+
+        blocks = []
+        for m in state["messages"]:
+            if not isinstance(m, AIMessage):
+                continue
+            label = m.name or "Assistant"
+            blocks.append(f"### {label}\n{m.content}")
+
+        specialist_blob = "\n\n".join(blocks) if blocks else "(No specialist outputs.)"
+
+        response = llm.invoke(
+            [
+                SystemMessage(content=summarizer_system),
+                HumanMessage(
+                    content=(
+                        f"User request:\n{user_query}\n\n"
+                        f"Specialist outputs (verbatim):\n{specialist_blob}"
+                    )
+                ),
+            ]
+        )
+        memo = (response.content or "").strip()
+        return {"messages": [AIMessage(content=memo, name="Summarizer")]}
+
+    return summarizer_function
 
 
 def build_financial_graph(llm):
@@ -253,7 +311,8 @@ def build_financial_graph(llm):
     workflow.add_node("Quant_Agent", make_worker_node(quant_agent, "Quant_Agent"))
     workflow.add_node("Fundamental_Agent", make_worker_node(fundamental_agent, "Fundamental_Agent"))
     workflow.add_node("Sentiment_Agent", make_worker_node(sentiment_agent, "Sentiment_Agent"))
-    
+    workflow.add_node("Summarizer", create_summarizer_node(llm))
+
     # 3. Add Edges (Workers always report back to Supervisor)
     for member in members:
         workflow.add_edge(member, "Supervisor")
@@ -269,10 +328,12 @@ def build_financial_graph(llm):
             "Quant_Agent": "Quant_Agent",
             "Fundamental_Agent": "Fundamental_Agent",
             "Sentiment_Agent": "Sentiment_Agent",
-            "FINISH": END
+            "FINISH": "Summarizer",
         }
     )
-    
+
+    workflow.add_edge("Summarizer", END)
+
     return workflow.compile()
 
 
@@ -285,7 +346,7 @@ def main():
         temperature=0
     )
     
-    print("--- Phase 4: LangGraph Multi-Agent System Initialized ---")
+    print("--- Multi-Agent System + Summarizer Initialized ---")
     print("Type 'exit' to quit.\n")
     
     # Compile the graph
@@ -311,8 +372,14 @@ def main():
                 if node_name in ("Supervisor", "Planner"):
                     continue
                 messages = state_update.get("messages", [])
-                if messages:
-                    print(f"\n[{node_name}]: {messages[-1].content}")   
+                if not messages:
+                    continue
+                content = messages[-1].content
+                if node_name == "Summarizer":
+                    print("\n--- Investment Memo ---")
+                    print(content)
+                else:
+                    print(f"\n[{node_name}]: {content}")
         
         print("\n--- Workflow Complete ---")
 

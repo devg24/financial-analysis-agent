@@ -65,9 +65,9 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 - [x] Build the **Planner & Supervisor Agents**: Parse user queries and route tasks sequentially.
 - [x] Build the **Quant, Fundamental, and Sentiment Agents** as isolated execution nodes.
 
-### Phase 5: Synthesis, Cloud Migration & MLOps ⏳ *(Up Next)*
+### Phase 5: Synthesis, Cloud Migration & MLOps ⏳ *(In Progress)*
 *Objective: Synthesize outputs and deploy for production.*
-- [ ] Build the **Summary Node** to compile agent outputs into a unified Investment Memo.
+- [x] Build the **Summary Node** to compile agent outputs into a unified Investment Memo.
 - [ ] Containerize the application using Docker.
 - [ ] Provision a GCP Compute Engine instance with an Nvidia L4 GPU.
 - [ ] Deploy vLLM and expose the multi-agent system via FastAPI.
