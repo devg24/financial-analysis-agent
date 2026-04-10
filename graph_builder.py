@@ -207,7 +207,7 @@ Write the memo using this structure and markdown headings:
 
 # Investment Memo
 ## Executive Summary
-2–4 sentences answering the user in plain language.
+2-4 sentences answering the user in plain language.
 
 ## Key Facts & Data
 Bullet points. Use ONLY numbers, metrics, and quotes that appear in the specialist outputs. If a section had no data, say "No quantitative/fundamental/sentiment data provided" as appropriate.
