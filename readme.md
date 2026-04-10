@@ -11,7 +11,8 @@ An asynchronous, multi-agent LLM pipeline designed to automate quantitative fina
 * **Market Data APIs:** `yfinance` (Quantitative), SEC EDGAR API (Fundamental), Yahoo Finance RSS (News/Event-Driven)
 * **Vector Database:** ChromaDB (for RAG on SEC Filings)
 * **Embeddings:** HuggingFace `all-MiniLM-L6-v2`
-* **Deployment:** Docker, FastAPI
+* **HTTP API:** [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) (Docker-ready; container not yet added)
+* **Observability:** [LangSmith](https://smith.langchain.com/) tracing (optional, via `.env`)
 
 ---
 
@@ -68,9 +69,11 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 ### Phase 5: Synthesis, Cloud Migration & MLOps ⏳ *(In Progress)*
 *Objective: Synthesize outputs and deploy for production.*
 - [x] Build the **Summary Node** to compile agent outputs into a unified Investment Memo.
+- [x] Expose the graph via **FastAPI** (`GET /health`, `POST /chat`) with env-driven LLM settings (OpenAI-compatible endpoint, e.g. Ollama).
+- [x] Refactor: shared **graph** + **runner** modules so CLI and API use the same execution path (no `input()` on the server).
 - [ ] Containerize the application using Docker.
 - [ ] Provision a GCP Compute Engine instance with an Nvidia L4 GPU.
-- [ ] Deploy vLLM and expose the multi-agent system via FastAPI.
+- [ ] Deploy vLLM (or keep Ollama) behind the same API for cloud inference.
 
 ---
 
@@ -93,15 +96,46 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
    pip install -r requirements.txt
    ```
 
-4. **Ensure Ollama is running locally:**
+4. **Configure environment (optional):**
+   ```bash
+   cp .env.example .env
+   # Edit .env: OPENAI_* for LLM endpoint; LangSmith vars if you want traces.
+   ```
+
+5. **Ensure the LLM server is reachable** (default assumes local Ollama):
    ```bash
    ollama run llama3.1
    ```
 
-5. **Run the Orchestrator:**
+6. **Run one of:**
+
+   **Interactive CLI** (stdin prompts; good for local debugging):
    ```bash
    python main.py
    ```
+
+   **HTTP API** (suitable for Docker / no TTY):
+   ```bash
+   uvicorn api:app --host 0.0.0.0 --port 8000
+   ```
+
+   Example request:
+   ```bash
+   curl -s -X POST http://127.0.0.1:8000/chat \
+     -H "Content-Type: application/json" \
+     -d '{"query":"What is the price and recent news for AAPL?"}'
+   ```
+
+## Project layout (refactor)
+
+| File | Role |
+|------|------|
+| `graph_builder.py` | LangGraph state, nodes, agents, `build_financial_graph()`. |
+| `runner.py` | `create_llm()`, `run_financial_query()` — one graph turn, LangSmith-friendly run config. |
+| `config.py` | `pydantic-settings` `Settings` from env (`OPENAI_*`). |
+| `api.py` | FastAPI app: lifespan compiles graph once; `/health`, `/chat`. |
+| `main.py` | Thin CLI: `input()` loop calling `run_financial_query()`. |
+| `sec_tools.py`, `rag_tools.py`, `sentiment_tools.py` | Specialist tools (unchanged entry points). |
 
 ## Usage Examples
 
