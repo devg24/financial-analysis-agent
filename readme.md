@@ -78,7 +78,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/devg24/financial-analysis-agent](https://github.com/devg24/financial-analysis-agent)
+   git clone https://github.com/devg24/financial-analysis-agent
    cd FinAgent
    ```
 
