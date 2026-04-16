@@ -76,7 +76,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 - [ ] Build a **Streamlit UI** for an interactive web chatbot experience.
 - [ ] Containerize both FastAPI and Streamlit using **Docker** (`docker-compose`).
 - [ ] Migrate LLM inference to **Groq API** (Llama-3.1-8B) for fast, robust serverless inference.
-- [ ] Deploy the Docker application to **Google Cloud Run** for a scalable, $0-cost portfolio showcase.
+- [ ] Deploy the Docker application to **Google Cloud Run** for a scalable portfolio showcase.
 
 ---
 
