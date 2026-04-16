@@ -4,13 +4,14 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 import langchain
 
 from config import Settings
 from graph_builder import build_financial_graph
-from runner import create_llm, run_financial_query
+from runner import create_llm, run_financial_query, astream_financial_query
 
 
 @asynccontextmanager
@@ -57,3 +58,16 @@ async def chat(request: Request, body: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     return ChatResponse(**result)
+
+
+@app.post("/chat/stream")
+async def chat_stream(request: Request, body: ChatRequest):
+    graph = request.app.state.graph
+    q = body.query.strip()
+    if not q:
+        raise HTTPException(status_code=400, detail="query must not be empty")
+    
+    return StreamingResponse(
+        astream_financial_query(graph, q), 
+        media_type="text/event-stream"
+    )

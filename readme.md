@@ -5,8 +5,10 @@ An asynchronous, multi-agent LLM pipeline designed to automate quantitative fina
 ## Architecture & Tech Stack
 
 * **Orchestration:** [LangGraph](https://python.langchain.com/docs/langgraph) / LangChain
+* **Frontend:** Streamlit
 * **Local Inference (Apple MPS):** Ollama (Llama-3.1-8B-Instruct)
-* **Cloud Inference (GCP L4):** vLLM 
+* **Cloud Inference:** Groq API (Llama-3.1-8B-Instruct)
+* **Deployment System:** Docker + Google Cloud Run
 * **Data Pipelines:** Pandas, NumPy
 * **Market Data APIs:** `yfinance` (Quantitative), SEC EDGAR API (Fundamental), Yahoo Finance RSS (News/Event-Driven)
 * **Vector Database:** ChromaDB (for RAG on SEC Filings)
@@ -66,14 +68,15 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 - [x] Build the **Planner & Supervisor Agents**: Parse user queries and route tasks sequentially.
 - [x] Build the **Quant, Fundamental, and Sentiment Agents** as isolated execution nodes.
 
-### Phase 5: Synthesis, Cloud Migration & MLOps ⏳ *(In Progress)*
-*Objective: Synthesize outputs and deploy for production.*
+### Phase 5: UI & Cloud Deployment ⏳ *(In Progress)*
+*Objective: Synthesize outputs, add a frontend, and deploy for production.*
 - [x] Build the **Summary Node** to compile agent outputs into a unified Investment Memo.
 - [x] Expose the graph via **FastAPI** (`GET /health`, `POST /chat`) with env-driven LLM settings (OpenAI-compatible endpoint, e.g. Ollama).
 - [x] Refactor: shared **graph** + **runner** modules so CLI and API use the same execution path (no `input()` on the server).
-- [ ] Containerize the application using Docker.
-- [ ] Provision a GCP Compute Engine instance with an Nvidia L4 GPU.
-- [ ] Deploy vLLM (or keep Ollama) behind the same API for cloud inference.
+- [ ] Build a **Streamlit UI** for an interactive web chatbot experience.
+- [ ] Containerize both FastAPI and Streamlit using **Docker** (`docker-compose`).
+- [ ] Migrate LLM inference to **Groq API** (Llama-3.1-8B) for fast, robust serverless inference.
+- [ ] Deploy the Docker application to **Google Cloud Run** for a scalable, $0-cost portfolio showcase.
 
 ---
 

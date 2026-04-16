@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 
-USER_AGENT = "Dev Goyal devgoyal9031@gmail.com" # Update this to your real email!
+USER_AGENT = "Dev Goyal devgoyal9031@gmail.com"
 HEADERS = {"User-Agent": USER_AGENT}
 
 def get_cik_from_ticker(ticker: str) -> str:
