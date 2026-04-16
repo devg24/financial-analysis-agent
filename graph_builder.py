@@ -54,7 +54,7 @@ def merge_sets(a: Set, b: Set) -> Set:
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    next: str
+    next: str | list[str]
     steps: Annotated[int, operator.add]
     completed_tasks: Annotated[Set[str], merge_sets]
     pending_tasks: list
@@ -188,10 +188,17 @@ def create_supervisor_node(llm):
             print("-> All tasks complete. Routing to Summarizer.")
             return {"next": "FINISH", "steps": 1}
 
-        next_task = remaining[0]
-        print(f"\n[Supervisor]: Next task → {next_task['task_id']} ({next_task['description']})")
+        # Dispatch one task per unique agent in parallel
+        agents_to_dispatch = []
+        dispatched_tasks = []
+        for task in remaining:
+            if task["agent"] not in agents_to_dispatch:
+                agents_to_dispatch.append(task["agent"])
+                dispatched_tasks.append(task["task_id"])
+
+        print(f"\n[Supervisor]: Dispatching tasks in parallel → {dispatched_tasks}")
         return {
-            "next": next_task["agent"],
+            "next": agents_to_dispatch,
             "steps": 1,
         }
 

@@ -4,21 +4,31 @@ from langchain_core.tools import tool
 from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, Field
-
+import functools
 
 
 USER_AGENT = "Dev Goyal devgoyal9031@gmail.com"
 HEADERS = {"User-Agent": USER_AGENT}
 
-def get_cik_from_ticker(ticker: str) -> str:
-    ticker = ticker.upper()
+@functools.lru_cache(maxsize=1)
+def _get_ticker_to_cik_mapping() -> dict[str, str]:
+    """Fetches and caches the SEC ticker to CIK mapping."""
     url = "https://www.sec.gov/files/company_tickers.json"
+    print("[System: Fetching SEC ticker to CIK mapping...]")
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     data = response.json()
+    
+    mapping = {}
     for _, company_info in data.items():
-        if company_info['ticker'] == ticker:
-            return str(company_info['cik_str']).zfill(10)
+        mapping[company_info['ticker'].upper()] = str(company_info['cik_str']).zfill(10)
+    return mapping
+
+def get_cik_from_ticker(ticker: str) -> str:
+    ticker = ticker.upper()
+    mapping = _get_ticker_to_cik_mapping()
+    if ticker in mapping:
+        return mapping[ticker]
     raise ValueError(f"Ticker {ticker} not found in SEC database.")
 
 def get_latest_10k_url(ticker: str) -> str:
