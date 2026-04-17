@@ -121,26 +121,26 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
    **Option B: Local Streamlit Testing (No Docker)**
    Open two terminal windows. In the first, start the API backend:
    ```bash
-   uvicorn api:app --host 127.0.0.1 --port 8000
+   uvicorn backend.api:app --host 127.0.0.1 --port 8000
    ```
    In the second terminal, start the Streamlit frontend:
    ```bash
-   streamlit run streamlit_app.py --server.port 8501
+   streamlit run frontend/streamlit_app.py --server.port 8501
    ```
    *Navigate to `http://localhost:8501` to use the chatbot.*
 
 ## Project Layout
 
-| File | Role |
+| Directory/File | Role |
 |------|------|
-| `streamlit_app.py` | Streamlit interactive web frontend with real-time SSE streaming. |
-| `api.py` | FastAPI app: exposes LangGraph via `/chat` and `/chat/stream`. |
-| `graph_builder.py` | LangGraph state, nodes, agents, `build_financial_graph()`. |
-| `runner.py` | `create_llm()`, `run_financial_query()`, and the SSE generator. |
-| `ingest.py` | CLI tool to scrape, chunk, and embed SEC 10-K filings into vector DB. |
-| `config.py` | `pydantic-settings` configuring the LLM endpoints via `.env`. |
-| `main.py` | Minimal CLI alternative to the web UI. |
-| `sec_tools.py`, `rag_tools.py`, `sentiment_tools.py` | Underlying specialist worker tools given to the graph agents. |
+| `backend/api.py` | FastAPI app: exposes LangGraph via `/chat` and `/chat/stream`. |
+| `frontend/streamlit_app.py` | Streamlit interactive web frontend with real-time SSE streaming. |
+| `core/graph_builder.py` | LangGraph state, nodes, agents, `build_financial_graph()`. |
+| `core/runner.py` | `create_llm()`, `run_financial_query()`, and the SSE generator. |
+| `core/config.py` | `pydantic-settings` configuring the LLM endpoints via `.env`. |
+| `core/*_tools.py` | Underlying specialist worker tools given to the graph agents. |
+| `scripts/ingest.py` | CLI tool to scrape, chunk, and embed SEC 10-K filings into vector DB. |
+| `scripts/main.py` | Minimal CLI alternative to the web UI. |
 | `docker-compose.yml`, `Dockerfile.*` | Container orchestration for deployment and local testing. |
 
 ## Usage Examples

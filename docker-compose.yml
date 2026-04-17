@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build: 
@@ -12,7 +10,7 @@ services:
     volumes:
       - ./:/app # Hot-reloading mapping
       - ./chroma_db:/app/chroma_db # Persist the vector database locally
-    command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.api:app --host 0.0.0.0 --port 8000 --reload
 
   ui:
     build:

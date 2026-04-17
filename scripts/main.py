@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 import langchain
 from langchain_core.messages import HumanMessage
 
-from config import Settings
-from graph_builder import build_financial_graph
-from runner import create_llm, run_financial_query
+from core.config import Settings
+from core.graph_builder import build_financial_graph
+from core.runner import create_llm, run_financial_query
 
 load_dotenv()
 langchain.debug = os.getenv("LANGCHAIN_DEBUG", "").lower() in ("1", "true", "yes")

@@ -2,7 +2,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 import json
 
-from config import Settings
+from .config import Settings
 
 
 def create_llm(settings: Settings) -> ChatOpenAI:

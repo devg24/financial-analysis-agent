@@ -9,7 +9,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-from sec_tools import get_latest_10k_url, HEADERS
+from core.sec_tools import get_latest_10k_url, HEADERS
 
 def ingest_10k(ticker: str):
     """Downloads, cleans, and embeds a 10-K into a local Chroma Vector Database."""
