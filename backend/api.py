@@ -35,11 +35,14 @@ class ChatRequest(BaseModel):
 class StepOut(BaseModel):
     node: str
     content: str
+    step_latency: float | None = None
+    total_latency: float | None = None
 
 
 class ChatResponse(BaseModel):
     memo: str | None = None
     steps: list[StepOut] = Field(default_factory=list)
+    total_latency: float | None = None
 
 
 @app.get("/health")

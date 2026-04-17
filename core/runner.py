@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 import json
+import time
 
 from .config import Settings
 
@@ -33,19 +34,43 @@ def run_financial_query(compiled_graph, user_query: str) -> dict:
     }
     steps: list[dict] = []
     memo: str | None = None
+    
+    start_time = time.time()
+    last_time = start_time
+    total_latency = 0.0
+    
     for output in compiled_graph.stream(initial_state, stream_config):
         for node_name, state_update in output.items():
-            if node_name in ("Supervisor", "Planner"):
-                continue
-            messages = state_update.get("messages", [])
-            if not messages:
-                continue
-            content = messages[-1].content
+            current_time = time.time()
+            step_latency = current_time - last_time
+            total_latency = current_time - start_time
+            last_time = current_time
+            
+            if node_name == "Planner":
+                tasks = state_update.get("pending_tasks", [])
+                content = f"Generated {len(tasks)} parallel task(s): {[t['task_id'] for t in tasks]}"
+            elif node_name == "Supervisor":
+                next_agents = state_update.get("next", [])
+                if next_agents == "FINISH":
+                    content = "All tasks complete. Routing to Summarizer."
+                else:
+                    content = f"Dispatching tasks to: {next_agents}"
+            else:
+                messages = state_update.get("messages", [])
+                if not messages:
+                    continue
+                content = messages[-1].content
+                
             if node_name == "Summarizer":
                 memo = content
             else:
-                steps.append({"node": node_name, "content": content})
-    return {"memo": memo, "steps": steps}
+                steps.append({
+                    "node": node_name, 
+                    "content": content,
+                    "step_latency": round(step_latency, 2),
+                    "total_latency": round(total_latency, 2)
+                })
+    return {"memo": memo, "steps": steps, "total_latency": round(total_latency, 2)}
 
 
 async def astream_financial_query(compiled_graph, user_query: str):
@@ -66,14 +91,35 @@ async def astream_financial_query(compiled_graph, user_query: str):
         "metadata": {"app": "FinAgent"},
     }
     
+    start_time = time.time()
+    last_time = start_time
+    
     async for output in compiled_graph.astream(initial_state, stream_config):
         for node_name, state_update in output.items():
-            if node_name in ("Supervisor", "Planner"):
-                continue
-            messages = state_update.get("messages", [])
-            if not messages:
-                continue
-            content = messages[-1].content
+            current_time = time.time()
+            step_latency = current_time - last_time
+            total_latency = current_time - start_time
+            last_time = current_time
             
-            data = {"node": node_name, "content": content}
+            if node_name == "Planner":
+                tasks = state_update.get("pending_tasks", [])
+                content = f"Generated {len(tasks)} parallel task(s): {[t['task_id'] for t in tasks]}"
+            elif node_name == "Supervisor":
+                next_agents = state_update.get("next", [])
+                if next_agents == "FINISH":
+                    content = "All tasks complete. Routing to Summarizer."
+                else:
+                    content = f"Dispatching tasks to: {next_agents}"
+            else:
+                messages = state_update.get("messages", [])
+                if not messages:
+                    continue
+                content = messages[-1].content
+            
+            data = {
+                "node": node_name, 
+                "content": content,
+                "step_latency": round(step_latency, 2),
+                "total_latency": round(total_latency, 2)
+            }
             yield f"data: {json.dumps(data)}\n\n"

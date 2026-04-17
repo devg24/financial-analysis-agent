@@ -64,9 +64,13 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "assistant" and "steps" in message and message["steps"]:
             # Render past steps in a collapsed status box
-            with st.status("✅ Investment Memo Generated!", expanded=False):
+            total_time = message.get("total_latency", 0)
+            title = f"✅ Investment Memo Generated! (Total Latency: {total_time}s)" if total_time else "✅ Investment Memo Generated!"
+            with st.status(title, expanded=False):
                 for step in message["steps"]:
-                    st.write(f"**[{step['node']}]** {step['content']}")
+                    lat = step.get('step_latency', 0)
+                    lat_str = f"({lat}s) " if lat else ""
+                    st.write(f"**[{step['node']}]** {lat_str}{step['content']}")
         st.markdown(message["content"])
 
 # Unconditionally render the chat_input so it NEVER disappears from the UI
@@ -107,22 +111,36 @@ if prompt:
                                 data = json.loads(data_str)
                                 node = data.get("node")
                                 content = data.get("content")
+                                step_latency = data.get("step_latency", 0)
+                                total_latency = data.get("total_latency", 0)
                                 
                                 if node == "Summarizer":
                                     # The final node returns the full markdown report
                                     final_memo = content
                                     final_memo_placeholder.markdown(final_memo)
-                                    status_box.update(label="✅ Investment Memo Generated!", state="complete", expanded=False)
+                                    status_box.update(label=f"✅ Investment Memo Generated! (Total Latency: {total_latency}s)", state="complete", expanded=False)
                                 else:
                                     # Show what the different agents (Quant, Sentiment, etc.) are calculating
-                                    status_box.write(f"**[{node}]** {content}")
-                                    session_steps.append({"node": node, "content": content})
+                                    lat_str = f"({step_latency}s) " if step_latency else ""
+                                    status_box.write(f"**[{node}]** {lat_str}{content}")
+                                    session_steps.append({
+                                        "node": node, 
+                                        "content": content,
+                                        "step_latency": step_latency,
+                                        "total_latency": total_latency
+                                    })
                             except json.JSONDecodeError:
                                 pass
                 
                 # Save the final memo and intermediate steps to history
                 if final_memo:
-                    st.session_state.messages.append({"role": "assistant", "content": final_memo, "steps": session_steps})
+                    final_total_latency = session_steps[-1].get("total_latency", 0) if session_steps else 0
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": final_memo, 
+                        "steps": session_steps,
+                        "total_latency": final_total_latency
+                    })
                     
         except requests.exceptions.RequestException as e:
             status_box.update(label="❌ Connection Error", state="error", expanded=False)
