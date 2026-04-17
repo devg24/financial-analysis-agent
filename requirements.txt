@@ -27,3 +27,6 @@ langchain-chroma>=0.1.2
 
 # Utilities
 python-dotenv>=1.0.0
+
+# UI
+streamlit>=1.39.0

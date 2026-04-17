@@ -11,6 +11,7 @@ def create_llm(settings: Settings) -> ChatOpenAI:
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url,
         temperature=settings.openai_temperature,
+        max_tokens=800, # CRITICAL FIX: Stops Groq from 'reserving' 8000+ tokens per API call
     )
 
 

@@ -73,9 +73,9 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 - [x] Build the **Summary Node** to compile agent outputs into a unified Investment Memo.
 - [x] Expose the graph via **FastAPI** (`GET /health`, `POST /chat`) with env-driven LLM settings (OpenAI-compatible endpoint, e.g. Ollama).
 - [x] Refactor: shared **graph** + **runner** modules so CLI and API use the same execution path (no `input()` on the server).
-- [ ] Build a **Streamlit UI** for an interactive web chatbot experience.
-- [ ] Containerize both FastAPI and Streamlit using **Docker** (`docker-compose`).
-- [ ] Migrate LLM inference to **Groq API** (Llama-3.1-8B) for fast, robust serverless inference.
+- [x] Build a **Streamlit UI** for an interactive web chatbot experience.
+- [x] Containerize both FastAPI and Streamlit using **Docker** (`docker-compose`).
+- [x] Migrate LLM inference to **Groq API** (Llama-3.1-8B) for fast, robust serverless inference.
 - [ ] Deploy the Docker application to **Google Cloud Run** for a scalable portfolio showcase.
 
 ---
@@ -110,35 +110,38 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
    ollama run llama3.1
    ```
 
-6. **Run one of:**
+6. **Run the Application:**
 
-   **Interactive CLI** (stdin prompts; good for local debugging):
+   **Option A: Full Stack via Docker (Recommended)**
    ```bash
-   python main.py
+   docker compose up --build
    ```
+   *The interactive Streamlit UI will be available at `http://localhost:8501`.*
 
-   **HTTP API** (suitable for Docker / no TTY):
+   **Option B: Local Streamlit Testing (No Docker)**
+   Open two terminal windows. In the first, start the API backend:
    ```bash
-   uvicorn api:app --host 0.0.0.0 --port 8000
+   uvicorn api:app --host 127.0.0.1 --port 8000
    ```
-
-   Example request:
+   In the second terminal, start the Streamlit frontend:
    ```bash
-   curl -s -X POST http://127.0.0.1:8000/chat \
-     -H "Content-Type: application/json" \
-     -d '{"query":"What is the price and recent news for AAPL?"}'
+   streamlit run streamlit_app.py --server.port 8501
    ```
+   *Navigate to `http://localhost:8501` to use the chatbot.*
 
-## Project layout (refactor)
+## Project Layout
 
 | File | Role |
 |------|------|
+| `streamlit_app.py` | Streamlit interactive web frontend with real-time SSE streaming. |
+| `api.py` | FastAPI app: exposes LangGraph via `/chat` and `/chat/stream`. |
 | `graph_builder.py` | LangGraph state, nodes, agents, `build_financial_graph()`. |
-| `runner.py` | `create_llm()`, `run_financial_query()` — one graph turn, LangSmith-friendly run config. |
-| `config.py` | `pydantic-settings` `Settings` from env (`OPENAI_*`). |
-| `api.py` | FastAPI app: lifespan compiles graph once; `/health`, `/chat`. |
-| `main.py` | Thin CLI: `input()` loop calling `run_financial_query()`. |
-| `sec_tools.py`, `rag_tools.py`, `sentiment_tools.py` | Specialist tools (unchanged entry points). |
+| `runner.py` | `create_llm()`, `run_financial_query()`, and the SSE generator. |
+| `ingest.py` | CLI tool to scrape, chunk, and embed SEC 10-K filings into vector DB. |
+| `config.py` | `pydantic-settings` configuring the LLM endpoints via `.env`. |
+| `main.py` | Minimal CLI alternative to the web UI. |
+| `sec_tools.py`, `rag_tools.py`, `sentiment_tools.py` | Underlying specialist worker tools given to the graph agents. |
+| `docker-compose.yml`, `Dockerfile.*` | Container orchestration for deployment and local testing. |
 
 ## Usage Examples
 

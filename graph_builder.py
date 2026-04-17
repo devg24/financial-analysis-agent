@@ -112,12 +112,6 @@ CRITICAL AGENT CAPABILITY MAPPING:
    - SEC Financial Metrics (Revenue, Net Income, Margins, Cash Flow).
    - SEC 10-K RAG Searches: Use this for ANY qualitative questions about business strategy, supply chain, manufacturing, competition, and corporate RISKS.
 
-BROAD QUERY PROTOCOL:
-If the user asks for "general information", "an overview", or just gives a ticker name without specific metrics, you MUST default to creating exactly TWO tasks per ticker:
-1. A Quant_Agent task for the price.
-2. A Sentiment_Agent task for recent news.
-Do NOT use the Fundamental_Agent unless the user explicitly asks for SEC data, revenue, earnings, or risks.
-
 Read the user's request and output a JSON list of tasks needed to answer it.
 Each task must have:
 - "agent": "Quant_Agent", "Fundamental_Agent", or "Sentiment_Agent"
@@ -271,9 +265,9 @@ def build_financial_graph(llm):
             "You have exactly ONE tool: get_stock_metrics(ticker). "
             "For any price, volume, or trading-range question you MUST call get_stock_metrics—do not answer from memory. "
             "NEVER invent other tool names, NEVER output JSON blocks suggesting tools that do not exist. "
-            "GOLDEN RULE: After the tool returns, output ONLY the requested data values from that result. "
-            "NEVER use introductory phrases like 'Here is the data' or 'Alternatively'. "
-            "NEVER describe the tool you used. Just print the numbers."
+            "GOLDEN RULE: After the tool returns, you must format the output gracefully so it is easy to read. "
+            "Bold the labels (like **Current Price:** or **Average Volume:**) before injecting the numbers. "
+            "NEVER use introductory conversational filler like 'Here is the data'. Just print the labeled metrics directly."
         ),
         name="Quant_Agent",
     )
@@ -285,7 +279,8 @@ def build_financial_graph(llm):
             "You are a Fundamental Analyst. "
             "GOLDEN RULE: You must output the EXACT DATA or TEXT returned by your tools. "
             "Do NOT explain how the tools work or what they do. "
-            "Just answer the user's question using the fetched data."
+            "CRITICAL: ONCE YOU HAVE CALLED TO THE TOOL ONCE AND RECEIVED THE DATA, YOU MUST WRITE YOUR FINAL ANSWER IMMEDIATELY. DO NOT CALL THE TOOL A SECOND TIME. "
+            "Just answer the user's question using the fetched data and stop."
         ),
         name="Fundamental_Agent",
     )
@@ -294,9 +289,10 @@ def build_financial_graph(llm):
         tools=[get_recent_news],
         system_prompt=(
             "You are a Sentiment Analyst. Fetch recent news using your tool. "
-            "CRITICAL RULES: Your final response MUST be exactly two lines. "
+            "CRITICAL RULES: Your final response MUST be exactly five lines. "
             "Line 1: The sentiment score (a single number between -1.0 and 1.0). "
-            "Line 2: A strict ONE-SENTENCE justification. "
+            "Line 2-5: Justify the sentiment score based on the news articles."
+            "Include important keywords from the news articles in your response."
             "Do not add conversational filler. Do not ask the user follow-up questions."
         ),
         name="Sentiment_Agent",

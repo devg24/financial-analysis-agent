@@ -4,6 +4,12 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma 
 from langchain_core.messages import SystemMessage, HumanMessage
 
+import functools
+
+@functools.lru_cache(maxsize=1)
+def get_cached_embeddings():
+    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
 def get_10k_vector_db(ticker: str) -> Chroma:
     """Loads a pre-computed 10-K Chroma Vector Database from disk."""
     ticker = ticker.upper()
@@ -15,9 +21,8 @@ def get_10k_vector_db(ticker: str) -> Chroma:
             f"Please run the ingestion pipeline: `python ingest.py --tickers {ticker}`"
         )
         
-    print(f"[System: Loading Vector DB for {ticker} 10-K...]")
-    # Lazily initialize embeddings so we don't pay the startup cost unless accessed
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    # Using cached embeddings to prevent massive memory slowdowns on agent loops
+    embeddings = get_cached_embeddings()
     return Chroma(
         persist_directory=persist_directory, 
         embedding_function=embeddings
@@ -28,7 +33,7 @@ def search_10k_filings(ticker: str, query: str, llm=None) -> str:
     """Searches 10-K and returns a CONCISE summary of findings."""
     try:
         db = get_10k_vector_db(ticker)
-        results = db.similarity_search(query, k=5) 
+        results = db.similarity_search(query, k=2) 
         
         if not results:
             return f"No info found for {query}."

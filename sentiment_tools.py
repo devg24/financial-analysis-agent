@@ -35,7 +35,7 @@ def get_recent_news(ticker: str) -> str:
         summary = f"Recent News Headlines for {ticker}:\n\n"
         
         # Grab the top 5 most recent articles
-        for i, item in enumerate(items[:5]): 
+        for i, item in enumerate(items[:10]): 
             title = item.title.text if item.title else "No Title"
             # RSS provides nicely formatted publication dates
             pub_date = item.pubDate.text if item.pubDate else "Recent" 
