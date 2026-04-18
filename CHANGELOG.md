@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Phase 6] - Earnings Call Analysis Integration
+
+### Architecture
+* **Two-Pipeline Design:** Added a new `Earnings_Agent` backed by an offline ingest pipeline and a runtime inference pipeline, following the same separation pattern as the existing 10-K RAG system.
+* **Ingest Layer (`core/earnings_tools.py`):** Fetches transcripts from Alpha Vantage (premium) or SEC 8-K filings (free fallback), normalizes them into `Prepared Remarks` and `Q&A Session` segments, extracts keyword frequency counts, and embeds everything into a dedicated ChromaDB collection.
+* **Inference Layer:** Three new `@tool` functions — `search_earnings_call` (RAG search), `get_earnings_sentiment_divergence` (section comparison), and `get_earnings_keyword_trends` (cross-quarter keyword tracking).
+* **Graph Extension:** Added `Earnings_Agent` to the LangGraph `members` list, planner capability map, supervisor dispatch edges, and summarizer prompt.
+
+### Added
+* `core/earnings_tools.py` — Combined ingest + inference module for earnings-call data.
+* `scripts/ingest_earnings_calls.py` — CLI tool for batch ingestion (`--tickers AAPL --quarters Q1-2025 Q2-2025`).
+* Earnings-call example button in the Streamlit sidebar for quick testing.
+* `ALPHA_VANTAGE_API_KEY` config setting in `.env.example` and `core/config.py`.
+* Earnings Call Insights section in the Investment Memo (Summarizer) when earnings data is present.
+
+### Changed
+* **Planner Prompt:** Extended with `Earnings_Agent` capability mapping for earnings-call queries.
+* **Summarizer Prompt:** New `## Earnings Call Insights` memo section for divergence and keyword findings.
+* **Streamlit Sidebar:** Now detects and displays `_earnings` ChromaDB collections alongside `_10k` collections.
+
 ## [Phase 4] - Multi-Agent LangGraph Integration & SEC Pipeline Hardening
 
 ### Architecture Overhaul

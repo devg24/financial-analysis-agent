@@ -13,6 +13,11 @@ from langchain.agents import create_agent
 from .sec_tools import get_company_concept_xbrl
 from .rag_tools import search_10k_filings
 from .sentiment_tools import get_recent_news
+from .earnings_tools import (
+    search_earnings_call,
+    get_earnings_sentiment_divergence,
+    get_earnings_keyword_trends,
+)
 
 
 @tool
@@ -60,7 +65,7 @@ class AgentState(TypedDict):
     pending_tasks: list
 
 
-members = ["Quant_Agent", "Fundamental_Agent", "Sentiment_Agent"]
+members = ["Quant_Agent", "Fundamental_Agent", "Sentiment_Agent", "Earnings_Agent"]
 
 
 def make_worker_node(agent, name: str):
@@ -111,10 +116,15 @@ CRITICAL AGENT CAPABILITY MAPPING:
 3. Fundamental_Agent: Use for TWO things:
    - SEC Financial Metrics (Revenue, Net Income, Margins, Cash Flow).
    - SEC 10-K RAG Searches: Use this for ANY qualitative questions about business strategy, supply chain, manufacturing, competition, and corporate RISKS.
+4. Earnings_Agent: Use for earnings-call analysis. This includes:
+   - Management commentary and guidance from earnings calls.
+   - Sentiment divergence between Prepared Remarks and Q&A sessions.
+   - Keyword and entity tracking across quarters (e.g., mentions of "AI", "headwinds", "growth").
+   => Use this agent when the user asks about earnings calls, management tone, guidance language, or quarter-over-quarter keyword trends.
 
 Read the user's request and output a JSON list of tasks needed to answer it.
 Each task must have:
-- "agent": "Quant_Agent", "Fundamental_Agent", or "Sentiment_Agent"
+- "agent": "Quant_Agent", "Fundamental_Agent", "Sentiment_Agent", or "Earnings_Agent"
 - "ticker": the stock ticker symbol (e.g. "AAPL")
 - "task_id": a unique string
 - "description": specific instructions on what to fetch or search
@@ -123,7 +133,8 @@ Output ONLY valid JSON. No explanation.
 example output:
 [
   {"agent": "Quant_Agent", "ticker": "AAPL", "task_id": "Quant_AAPL", "description": "Get price and volume for AAPL"},
-  {"agent": "Sentiment_Agent", "ticker": "MSFT", "task_id": "Sentiment_MSFT", "description": "Get sentiment analysis for MSFT"}
+  {"agent": "Sentiment_Agent", "ticker": "MSFT", "task_id": "Sentiment_MSFT", "description": "Get sentiment analysis for MSFT"},
+  {"agent": "Earnings_Agent", "ticker": "AAPL", "task_id": "Earnings_AAPL", "description": "Analyze sentiment divergence between prepared remarks and Q&A in the latest earnings call"}
 ]"""
 
     def planner_function(state: AgentState):
@@ -202,7 +213,7 @@ def create_supervisor_node(llm):
 def create_summarizer_node(llm):
     summarizer_system = """You are a senior investment analyst drafting an internal **Investment Memo** for colleagues.
 
-You will receive the user's original question and verbatim outputs from specialist agents (Quant_Agent, Fundamental_Agent, Sentiment_Agent), or a single clarification/refusal if no research ran.
+You will receive the user's original question and verbatim outputs from specialist agents (Quant_Agent, Fundamental_Agent, Sentiment_Agent, Earnings_Agent), or a single clarification/refusal if no research ran.
 
 Write the memo using this structure and markdown headings:
 
@@ -212,6 +223,12 @@ Write the memo using this structure and markdown headings:
 
 ## Key Facts & Data
 Bullet points. Use ONLY numbers, metrics, and quotes that appear in the specialist outputs. If a section had no data, say "No quantitative/fundamental/sentiment data provided" as appropriate.
+
+## Earnings Call Insights
+If Earnings_Agent data is present, summarize:
+- Sentiment divergence between Prepared Remarks and Q&A (was management more cautious or bullish in live Q&A vs. scripted remarks?).
+- Notable keyword/entity trends across quarters (e.g., increasing mentions of "AI", declining mentions of "headwinds").
+If no earnings data was provided, omit this section entirely.
 
 ## Risks, Sentiment, and Context
 Integrate fundamental and sentiment findings when present. If missing, state that briefly.
@@ -298,6 +315,29 @@ def build_financial_graph(llm):
         name="Sentiment_Agent",
     )
 
+    earnings_agent = create_agent(
+        model=llm,
+        tools=[
+            search_earnings_call,
+            get_earnings_sentiment_divergence,
+            get_earnings_keyword_trends,
+        ],
+        system_prompt=(
+            "You are an Earnings Call Analyst specializing in management commentary analysis. "
+            "You have THREE tools for analyzing pre-ingested earnings-call transcripts:\n"
+            "1. search_earnings_call: Search transcripts for specific topics (guidance, margins, strategy, etc.).\n"
+            "2. get_earnings_sentiment_divergence: Compare management tone in scripted Prepared Remarks vs live Q&A.\n"
+            "3. get_earnings_keyword_trends: Track keyword frequency changes across quarters.\n\n"
+            "CRITICAL RULES:\n"
+            "- You MUST call at least one tool. Do NOT answer from memory.\n"
+            "- If a tool returns an error about missing data, report that the earnings data for that "
+            "ticker/quarter has not been ingested and suggest running the ingest script.\n"
+            "- After the tool returns, write a clear, evidence-backed analysis. Bold key findings.\n"
+            "- Do NOT add conversational filler. Do NOT ask follow-up questions."
+        ),
+        name="Earnings_Agent",
+    )
+
     workflow.add_node("Planner", create_planner_node(llm))
     workflow.add_node("Supervisor", create_supervisor_node(llm))
 
@@ -306,6 +346,7 @@ def build_financial_graph(llm):
         "Fundamental_Agent", make_worker_node(fundamental_agent, "Fundamental_Agent")
     )
     workflow.add_node("Sentiment_Agent", make_worker_node(sentiment_agent, "Sentiment_Agent"))
+    workflow.add_node("Earnings_Agent", make_worker_node(earnings_agent, "Earnings_Agent"))
     workflow.add_node("Summarizer", create_summarizer_node(llm))
 
     for member in members:
@@ -321,6 +362,7 @@ def build_financial_graph(llm):
             "Quant_Agent": "Quant_Agent",
             "Fundamental_Agent": "Fundamental_Agent",
             "Sentiment_Agent": "Sentiment_Agent",
+            "Earnings_Agent": "Earnings_Agent",
             "FINISH": "Summarizer",
         },
     )

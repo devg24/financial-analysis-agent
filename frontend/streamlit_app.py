@@ -16,7 +16,7 @@ with st.sidebar:
     st.markdown(
         "This application uses **LangGraph** to construct a deterministic multi-agent state machine. "
         "The **Planner Agent** parses the query, while the **Supervisor** appropriately routes tasks "
-        "to specialized **Quant, Fundamental, and Sentiment Agents**.\n\n"
+        "to specialized **Quant, Fundamental, Sentiment, and Earnings Agents**.\n\n"
         "Finally, the **Summarizer** compiles a comprehensive Investment Memo."
     )
     
@@ -24,18 +24,26 @@ with st.sidebar:
     
     # Automatically survey the indexed ChromeDB vector stores
     available_tickers = []
+    earnings_tickers = []
     if os.path.exists("./chroma_db"):
         for d in os.listdir("./chroma_db"):
             if d.endswith("_10k"):
                 available_tickers.append(d.replace("_10k", ""))
+            elif d.endswith("_earnings"):
+                earnings_tickers.append(d.replace("_earnings", ""))
                 
     if available_tickers:
         st.markdown("### 📚 Supported 10-K Data")
         st.markdown("Deep RAG (Fundamental SEC filings) currently verified & compiled for:")
-        
-        # Display as nice Streamlit badges/tags
         cols = st.columns(4)
         for i, t in enumerate(sorted(available_tickers)):
+            cols[i % 4].code(t)
+
+    if earnings_tickers:
+        st.markdown("### 🎙️ Earnings Call Data")
+        st.markdown("Ingested earnings-call transcripts available for:")
+        cols = st.columns(4)
+        for i, t in enumerate(sorted(earnings_tickers)):
             cols[i % 4].code(t)
             
     st.divider()
@@ -51,6 +59,9 @@ with st.sidebar:
         
     if st.button("💻 MSFT vs GOOGL"):
         st.session_state.example_query = "Compare the current stock performance of Microsoft and Google."
+
+    if st.button("🎙️ Earnings Call Analysis"):
+        st.session_state.example_query = "Analyze the latest earnings call for Apple (AAPL) — compare management tone in prepared remarks vs Q&A and show keyword trends."
     
     st.divider()
     st.caption("Powered by Llama-3.1-8B via Groq")
