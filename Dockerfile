@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ── App source ───────────────────────────────────────────────────────────────
 COPY . .
 
+# ── Ensure project root is on PYTHONPATH for all scripts ─────────────────────
+ENV PYTHONPATH=/app
+
 # ── Pre-seed ChromaDB at build time ─────────────────────────────────────────
 # Ingest SEC 10-K filings for demo tickers
 RUN python scripts/ingest.py --tickers AAPL MSFT TSLA GOOGL NVDA
