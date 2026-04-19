@@ -73,9 +73,21 @@ def parse_quarter(quarter_str: str) -> tuple[int, int]:
     return q, y
 
 
-def _quarter_to_month(q: int) -> str:
-    """Map fiscal quarter to approximate month — used by the SEC 8-K fallback."""
-    return {1: "03", 2: "06", 3: "09", 4: "12"}[q]
+def _get_quarter_month_range(q: int) -> list[int]:
+    """
+    Get the month range (quarter end month + 3 months after) for a given quarter.
+    This is used as a heuristic to find the relevant 8-K filing.
+    """
+    start_month = {1: 3, 2: 6, 3: 9, 4: 12}[q]
+    # We allow a very wide range: 2 months before the standard month to 4 months after.
+    # This covers most fiscal year offsets (e.g. AAPL Q1 ends in Dec, reported in Jan/Feb).
+    months = []
+    for i in range(-2, 5):
+        m = start_month + i
+        if m < 1: m += 12
+        if m > 12: m -= 12
+        months.append(m)
+    return months
 
 
 # ---------------------------------------------------------------------------
@@ -151,28 +163,29 @@ def fetch_transcript_sec_8k(ticker: str, quarter: int, year: int) -> Optional[st
         resp.raise_for_status()
         filings = resp.json()["filings"]["recent"]
 
-        target_month = int(_quarter_to_month(quarter))
+        acceptable_months = _get_quarter_month_range(quarter)
         best_doc_url = None
 
         for i, form in enumerate(filings["form"]):
             if form != "8-K":
                 continue
+            
+            # Check for Item 2.02 (Results of Operations and Financial Condition)
+            # Some filings have items like '1.01,2.02,9.01', some just '2.02'
+            items = str(filings.get("items", [""])[i])
+            if "2.02" not in items:
+                # If we can't find Item 2.02, we fallback to checking if 'earnings' is in the title (if available)
+                # or just continuing to search for other 8-Ks.
+                continue
+
             filed = filings["filingDate"][i]  # "2025-01-30"
             filed_year, filed_month = int(filed[:4]), int(filed[5:7])
 
-            # Build a set of acceptable (year, month) pairs:
-            # Accept filings from the quarter-end month through 3 months after,
-            # handling year rollover (e.g., Q4 target_month=12 → Dec, Jan, Feb, Mar)
-            acceptable = set()
-            for offset in range(4):  # 0, 1, 2, 3 months after quarter end
-                m = target_month + offset
-                y = year
-                if m > 12:
-                    m -= 12
-                    y += 1
-                acceptable.add((y, m))
-
-            if (filed_year, filed_month) in acceptable:
+            # Logic: If the filing is within the target year (or next year if Q4) 
+            # and the month is in our heuristic range.
+            is_valid_year = (filed_year == year) or (quarter == 4 and filed_year == year + 1)
+            
+            if is_valid_year and filed_month in acceptable_months:
                 accession = filings["accessionNumber"][i]
                 acc_clean = accession.replace("-", "")
                 primary_doc = filings["primaryDocument"][i]
@@ -181,7 +194,7 @@ def fetch_transcript_sec_8k(ticker: str, quarter: int, year: int) -> Optional[st
                     f"{cik.lstrip('0')}/{acc_clean}/{primary_doc}"
                 )
                 best_doc_url = doc_url
-                break  # Take the first matching 8-K
+                break  # Take the first matching 8-K (most recent)
 
         if not best_doc_url:
             print(f"[Earnings Ingest] No matching SEC 8-K found for {ticker} Q{quarter}-{year}.")

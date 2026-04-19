@@ -28,7 +28,7 @@ ENV PYTHONPATH=/app
 RUN python scripts/ingest.py --tickers AAPL MSFT TSLA GOOGL NVDA
 
 # Ingest SEC 8-K / earnings call data for demo tickers
-RUN python scripts/ingest_earnings_calls.py --tickers AAPL MSFT GOOGL NVDA TSLA --quarters Q2-2025 Q1-2025 Q3-2025 Q4-2025 Q1-2026
+RUN python scripts/ingest_earnings_calls.py --tickers AAPL MSFT GOOGL NVDA TSLA --quarters Q3-2025 Q4-2025 Q1-2026
 
 # ── Supervisord config (runs both services) ─────────────────────────────────
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf

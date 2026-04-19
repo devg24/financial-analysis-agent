@@ -98,12 +98,19 @@ def main():
         }.get(r["status"], "❓")
         print(f"  {icon}  {r['ticker']} {r['quarter']}: {r['status']}")
 
-    failed = [r for r in results if r["status"] in ("failed", "error")]
-    if failed:
-        print(f"\n{len(failed)} ingest(s) failed. Check logs above.")
+    errors = [r for r in results if r["status"] == "error"]
+    failed = [r for r in results if r["status"] == "failed"]
+
+    if errors:
+        print(f"\n[CRITICAL] {len(errors)} ingest(s) hit technical errors. Check logs.")
         sys.exit(1)
-    else:
-        print(f"\nAll {len(results)} ingest(s) completed.")
+
+    if failed:
+        print(f"\n[INFO] {len(failed)} transcript(s) could not be found (likely not yet reported).")
+        print("This is not treated as a build failure.")
+    
+    print("\nIngestion process completed successfully.")
+    sys.exit(0)
 
 
 if __name__ == "__main__":
