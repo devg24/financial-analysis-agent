@@ -7,7 +7,7 @@ Usage:
     python scripts/ingest_earnings_calls.py --tickers TSLA --quarters Q1-2025
 
 Data sources (tried in order):
-    1. Alpha Vantage EARNINGS_CALL_TRANSCRIPT (requires premium key)
+    1. Financial Modeling Prep (FMP) (free tier, 250 req/day)
     2. SEC EDGAR 8-K filings (free, always available)
 """
 
@@ -45,7 +45,7 @@ def main():
     args = parser.parse_args()
 
     settings = Settings()
-    api_key = settings.alpha_vantage_api_key or os.getenv("ALPHA_VANTAGE_API_KEY", "")
+    api_key = settings.fmp_api_key or os.getenv("FMP_API_KEY", "")
     chroma_path = settings.earnings_chroma_path
 
     os.makedirs(chroma_path, exist_ok=True)
@@ -89,9 +89,13 @@ def main():
     print("INGEST SUMMARY")
     print(f"{'=' * 50}")
     for r in results:
-        icon = {"success": "✅", "partial": "⚠️", "failed": "❌", "exists": "⏭️", "error": "💥"}.get(
-            r["status"], "❓"
-        )
+        icon = {
+            "success": "✅",
+            "partial": "🟡",
+            "failed": "❌",
+            "exists": "⏭️",
+            "error": "💥",
+        }.get(r["status"], "❓")
         print(f"  {icon}  {r['ticker']} {r['quarter']}: {r['status']}")
 
     failed = [r for r in results if r["status"] in ("failed", "error")]

@@ -225,9 +225,10 @@ Write the memo using this structure and markdown headings:
 Bullet points. Use ONLY numbers, metrics, and quotes that appear in the specialist outputs. If a section had no data, say "No quantitative/fundamental/sentiment data provided" as appropriate.
 
 ## Earnings Call Insights
-If Earnings_Agent data is present, summarize:
-- Sentiment divergence between Prepared Remarks and Q&A (was management more cautious or bullish in live Q&A vs. scripted remarks?).
-- Notable keyword/entity trends across quarters (e.g., increasing mentions of "AI", declining mentions of "headwinds").
+If Earnings_Agent data is present, summarize management's key messages and guidance. 
+- If both Prepared Remarks and Q&A are present, analyze any sentiment divergence (e.g., was management more cautious in live Q&A?).
+- If only Prepared Remarks are available (typical for SEC-8 / 8-K filings), focus the analysis on the tone and specificity of the management commentary.
+- Note any notable keyword/entity trends across quarters (e.g., AI mentions).
 If no earnings data was provided, omit this section entirely.
 
 ## Risks, Sentiment, and Context
@@ -330,8 +331,10 @@ def build_financial_graph(llm):
             "3. get_earnings_keyword_trends: Track keyword frequency changes across quarters.\n\n"
             "CRITICAL RULES:\n"
             "- You MUST call at least one tool. Do NOT answer from memory.\n"
-            "- If a tool returns an error about missing data, report that the earnings data for that "
+            "- SEC filings (Form 8-K / SEC-8) are a valid source. They typically only contain Prepared Remarks and LACK a Q&A session. This is common and NOT a failure of the data.\n"
+            "- If a tool returns an error about missing data (e.g., no filings found), report that the earnings data for that "
             "ticker/quarter has not been ingested and suggest running the ingest script.\n"
+            "- If Q&A is missing, simply perform your analysis on the available management commentary.\n"
             "- After the tool returns, write a clear, evidence-backed analysis. Bold key findings.\n"
             "- Do NOT add conversational filler. Do NOT ask follow-up questions."
         ),

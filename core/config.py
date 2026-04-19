@@ -16,5 +16,5 @@ class Settings(BaseSettings):
     openai_temperature: float = 0.0
 
     # Earnings-call pipeline
-    alpha_vantage_api_key: str = ""
+    fmp_api_key: str = ""
     earnings_chroma_path: str = "./chroma_db"

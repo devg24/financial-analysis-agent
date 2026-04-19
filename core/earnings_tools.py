@@ -1,12 +1,16 @@
 """
 Earnings-call ingest + inference tools.
 
-Ingest layer  – fetch transcript (Alpha Vantage → SEC 8-K fallback),
+Ingest layer - fetch transcript (Financial Modeling Prep → SEC 8-K fallback),
                normalize into Prepared Remarks / Q&A segments,
                extract keyword counts, and embed into ChromaDB.
 
-Inference layer – LangGraph @tool functions for retrieval,
+Inference layer - LangGraph @tool functions for retrieval,
                  sentiment divergence, and keyword trend analysis.
+
+Primary API: Financial Modeling Prep (FMP) — free tier, 250 req/day.
+  Sign up:   https://financialmodelingprep.com/developer/docs
+  Endpoint:  GET /api/v3/earning_call_transcript/{symbol}?year=YYYY&quarter=N&apikey=KEY
 """
 
 import json
@@ -70,7 +74,7 @@ def parse_quarter(quarter_str: str) -> tuple[int, int]:
 
 
 def _quarter_to_month(q: int) -> str:
-    """Map fiscal quarter to approximate month for Alpha Vantage API."""
+    """Map fiscal quarter to approximate month — used by the SEC 8-K fallback."""
     return {1: "03", 2: "06", 3: "09", 4: "12"}[q]
 
 
@@ -78,46 +82,53 @@ def _quarter_to_month(q: int) -> str:
 # Transcript fetchers
 # ---------------------------------------------------------------------------
 
-def fetch_transcript_alpha_vantage(
+def fetch_transcript_fmp(
     ticker: str, quarter: int, year: int, api_key: str
 ) -> Optional[str]:
     """
-    Try the Alpha Vantage EARNINGS_CALL_TRANSCRIPT endpoint.
-    Returns raw transcript text or None on failure (premium-only).
+    Fetch an earnings-call transcript from Financial Modeling Prep (FMP).
+
+    Free tier: 250 requests / day — no premium required.
+    Sign up:   https://financialmodelingprep.com/developer/docs
+
+    Endpoint:
+        GET https://financialmodelingprep.com/api/v3/earning_call_transcript/{symbol}
+            ?year=YYYY&quarter=N&apikey=KEY
+
+    Response schema (list, first element used):
+        [{"symbol": "AAPL", "quarter": 1, "year": 2025,
+          "date": "2025-01-30 00:00:00", "content": "<full transcript>"}]
+
+    Returns the full transcript string or None on failure.
     """
     if not api_key:
         return None
     url = (
-        "https://www.alphavantage.co/query"
-        f"?function=EARNINGS_CALL_TRANSCRIPT"
-        f"&symbol={ticker}"
-        f"&quarter={year}Q{quarter}"
-        f"&apikey={api_key}"
+        f"https://financialmodelingprep.com/api/v3/earning_call_transcript/{ticker.upper()}"
+        f"?year={year}&quarter={quarter}&apikey={api_key}"
     )
     try:
-        print(f"[Earnings Ingest] Trying Alpha Vantage for {ticker} Q{quarter}-{year}...")
+        print(f"[Earnings Ingest] Trying FMP for {ticker} Q{quarter}-{year}...")
         resp = requests.get(url, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        # Alpha Vantage returns a list of transcript segments on success
-        if isinstance(data, dict) and "transcript" in data:
-            segments = data["transcript"]
-            lines = []
-            for seg in segments:
-                speaker = seg.get("speaker", "Unknown")
-                text = seg.get("content", "")
-                lines.append(f"{speaker}: {text}")
-            full = "\n".join(lines)
-            if len(full) > 200:
-                print(f"[Earnings Ingest] Alpha Vantage returned transcript ({len(full)} chars).")
-                return full
-        # Premium-required or empty response
-        info = data.get("Information") or data.get("Note") or ""
-        if info:
-            print(f"[Earnings Ingest] Alpha Vantage: {info[:120]}")
+
+        # FMP returns a list; first element holds the transcript
+        if isinstance(data, list) and data:
+            content = data[0].get("content", "")
+            if len(content) > 200:
+                print(f"[Earnings Ingest] FMP returned transcript ({len(content)} chars).")
+                return content
+            print(f"[Earnings Ingest] FMP returned empty/short content for {ticker} Q{quarter}-{year}.")
+            return None
+
+        # Error object returned (e.g. invalid key or no data for this quarter)
+        if isinstance(data, dict):
+            msg = data.get("Error Message") or data.get("message") or str(data)
+            print(f"[Earnings Ingest] FMP error: {msg[:120]}")
         return None
     except Exception as e:
-        print(f"[Earnings Ingest] Alpha Vantage failed: {e}")
+        print(f"[Earnings Ingest] FMP fetch failed: {e}")
         return None
 
 
@@ -210,7 +221,7 @@ def normalize_transcript(
             "ticker": ..., "quarter": ..., "year": ...,
             "prepared_remarks": str,
             "qa_session": str,
-            "source": "alpha_vantage" | "sec_8k",
+            "source": "fmp" | "sec_8k",
         }
     """
     text_lower = raw_text.lower()
@@ -225,7 +236,7 @@ def normalize_transcript(
         prepared = raw_text[:split_pos].strip()
         qa = raw_text[split_pos:].strip()
     else:
-        # Could not find Q&A boundary — treat entire text as prepared remarks
+        # SEC 8-K filings don't contain a Q&A section — treat entire text as prepared remarks
         prepared = raw_text.strip()
         qa = ""
 
@@ -310,7 +321,7 @@ def ingest_earnings_call(
 ) -> str:
     """
     Full ingest pipeline for one ticker/quarter pair.
-    Returns a status string: 'success', 'partial', or 'failed'.
+    Returns a status string: 'success', 'exists', or 'failed'.
     """
     ticker = ticker.upper()
     collection_dir = os.path.join(chroma_path, f"{ticker}_earnings")
@@ -322,9 +333,9 @@ def ingest_earnings_call(
         print(f"[Earnings Ingest] Q{quarter}-{year} for {ticker} already ingested. Skipping.")
         return "exists"
 
-    # 1. Fetch transcript
-    raw_text = fetch_transcript_alpha_vantage(ticker, quarter, year, api_key)
-    source = "alpha_vantage" if raw_text else None
+    # 1. Fetch transcript: FMP (free) → SEC 8-K fallback
+    raw_text = fetch_transcript_fmp(ticker, quarter, year, api_key)
+    source = "fmp" if raw_text else None
 
     if not raw_text:
         raw_text = fetch_transcript_sec_8k(ticker, quarter, year)
@@ -372,8 +383,8 @@ def ingest_earnings_call(
         docs.extend(splitter.split_documents([qa_doc]))
 
     if not docs:
-        _save_metadata(chroma_path, ticker, quarter, year, keywords, "partial")
-        return "partial"
+        _save_metadata(chroma_path, ticker, quarter, year, keywords, "failed")
+        return "failed"
 
     print(f"[Earnings Ingest] Embedding {len(docs)} chunks into {collection_dir}...")
     embeddings = get_cached_embeddings()
@@ -383,9 +394,10 @@ def ingest_earnings_call(
         persist_directory=collection_dir,
     )
 
-    status = "success" if segments["qa_session"] else "partial"
+    # SEC 8-K filings often lack a Q&A section — this is a successful fallback
+    status = "success"
     _save_metadata(chroma_path, ticker, quarter, year, keywords, status)
-    print(f"[Earnings Ingest] {ticker} Q{quarter}-{year} ingested ({status}).")
+    print(f"[Earnings Ingest] {ticker} Q{quarter}-{year} ingested ({status}, source={source}).")
     return status
 
 
@@ -420,7 +432,7 @@ def search_earnings_call(ticker: str, query: str) -> str:
         results = db.similarity_search(query, k=3)
 
         if not results:
-            return f"No earnings-call matches found for '{query}' on {ticker}."
+            return f"No earnings data matched '{query}' for {ticker}. Try broadening your search terms."
 
         output_parts = [f"EARNINGS CALL SEARCH RESULTS FOR {ticker.upper()} — '{query}':\n"]
         total_chars = 0
@@ -444,6 +456,8 @@ def get_earnings_sentiment_divergence(ticker: str) -> str:
     Retrieves evidence from both Prepared Remarks and Q&A sections of the
     most recent earnings call for a ticker. Use this to analyze whether
     management tone differs between the scripted portion and live Q&A.
+    When only prepared remarks are available (e.g. from an SEC 8-K filing),
+    performs a single-section tone analysis instead.
     CRITICAL: The ticker's earnings data must already be ingested.
     """
     try:
@@ -461,31 +475,37 @@ def get_earnings_sentiment_divergence(ticker: str) -> str:
             filter={"section": "Q&A Session"},
         )
 
-        output = f"SENTIMENT DIVERGENCE EVIDENCE FOR {ticker.upper()}:\n\n"
+        output = f"EARNINGS TONE ANALYSIS FOR {ticker.upper()}:\n\n"
 
-        output += "=== PREPARED REMARKS (scripted management commentary) ===\n"
+        output += "=== MANAGEMENT COMMENTARY ===\n"
         if pr_results:
             for doc in pr_results:
                 output += doc.page_content[:600] + "\n---\n"
         else:
-            output += "(No Prepared Remarks data found.)\n"
+            # Fallback: search without section filter
+            fallback = db.similarity_search("management outlook guidance performance", k=3)
+            for doc in fallback:
+                output += doc.page_content[:600] + "\n---\n"
 
-        output += "\n=== Q&A SESSION (live analyst questions & management responses) ===\n"
         if qa_results:
+            output += "\n=== ANALYST Q&A ===\n"
             for doc in qa_results:
                 output += doc.page_content[:600] + "\n---\n"
-        else:
-            output += "(No Q&A Session data found — transcript may not have contained a Q&A segment.)\n"
+            output += (
+                "\nINSTRUCTION: Compare the tone, confidence, and specificity between "
+                "the Management Commentary and Analyst Q&A sections. Note any divergence "
+                "where management was more cautious, evasive, or forthcoming under questioning."
+            )
+            output += (
+                "\nINSTRUCTION: Analyze the tone, confidence, and specificity of the "
+                "management commentary above. (Note: Only management commentary was found, typical of SEC 8-K filings). "
+                "Identify forward-looking statements, hedging language, areas of emphasis, and any notable risks or opportunities mentioned."
+            )
 
-        output += (
-            "\nINSTRUCTION: Compare the tone, confidence, and specificity between "
-            "Prepared Remarks and Q&A. Note any divergence where management was more "
-            "cautious, evasive, or forthcoming in one section vs the other."
-        )
         return output
 
     except Exception as e:
-        return f"Error retrieving divergence data: {e}"
+        return f"Error retrieving tone analysis data: {e}"
 
 
 @tool
