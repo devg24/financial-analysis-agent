@@ -37,7 +37,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 * **Zero-Hallucination Guardrails:** Worker nodes programmatically verify that a `ToolMessage` was successfully executed before allowing the LLM to output an answer. "Creative guesses" are blocked.
 * **Advanced SEC XBRL Parsing:** Handles the messy reality of SEC EDGAR data with Pandas-driven datetime sorting, deduplication, and recursive GAAP tag fallbacks (e.g., gracefully handling `RevenueFromContract...` vs. `Revenues`).
 * **On-the-Fly Vector Databases:** Automatically downloads, cleans (HTML Regex isolation), chunks, and embeds corporate 10-K filings into a local ChromaDB instance the moment a user asks about corporate risks or supply chains.
-* **Earnings-Call Analysis:** Two-pipeline architecture — an offline ingest pipeline fetches and segments transcripts (Alpha Vantage / SEC 8-K), while the runtime inference pipeline uses RAG retrieval with section (Prepared Remarks / Q&A) and quarter filters for LLM-driven divergence analysis and keyword trend tracking.
+* **Earnings-Call Analysis:** Two-pipeline architecture — an offline ingest pipeline fetches and segments transcripts (Financial Modeling Prep / SEC 8-K), while the runtime inference pipeline uses RAG retrieval with section (Prepared Remarks / Q&A) and quarter filters. Handles SEC-8 (8-K) fallbacks gracefully even when Q&A is missing.
 
 ---
 
@@ -83,7 +83,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 ### Phase 6: Earnings Call Analysis ✅
 *Objective: Add LLM-driven earnings-call analysis with a free-first data pipeline.*
 - [x] Build two-pipeline architecture: offline ingest + runtime inference.
-- [x] Implement transcript fetching (Alpha Vantage premium / SEC 8-K free fallback).
+- [x] Implement transcript fetching (Financial Modeling Prep free tier / SEC 8-K fallback).
 - [x] Add transcript normalization and section segmentation (Prepared Remarks vs Q&A).
 - [x] Build keyword/entity frequency extraction with quarter-over-quarter tracking.
 - [x] Create three inference `@tool` functions: search, sentiment divergence, keyword trends.
@@ -169,7 +169,8 @@ The agent can handle single metrics, multi-ticker comparisons, and qualitative d
 * *"Analyze the latest earnings call for Apple — compare management tone in prepared remarks vs Q&A."*
 * *"Show keyword trends across Apple's recent earnings calls."*
 
-> **Note:** Earnings-call analysis requires pre-ingesting transcript data:
 > ```bash
 > python scripts/ingest_earnings_calls.py --tickers AAPL --quarters Q4-2024 Q1-2025
 > ```
+> *Note: SEC 8-K (sec-8) filings are supported as a fallback when FMP results are unavailable, focusing on Prepared Remarks if Q&A is missing.*
+> 
