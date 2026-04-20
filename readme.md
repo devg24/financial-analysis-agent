@@ -201,6 +201,8 @@ We evaluated FinAgent using a **43-item Golden Dataset** (Benchmark V2) comparin
 *   **Multi-Agent Synergies**: The agent correctly synthesized earnings call Q&A segments (67% accuracy) that the baseline had no visibility into.
 
 ### Running the Evaluation
+For a deep-dive into our scientific approach, Anchored Ground Truth, and cross-model judging, see our **[Technical Evaluation Methodology](evaluation/evaluation_methodology.md)**.
+
 ```bash
 # 1. Run Baseline
 python3 evaluation/run_eval.py --mode baseline
