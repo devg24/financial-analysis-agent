@@ -509,6 +509,7 @@ def get_earnings_sentiment_divergence(ticker: str) -> str:
                 "the Management Commentary and Analyst Q&A sections. Note any divergence "
                 "where management was more cautious, evasive, or forthcoming under questioning."
             )
+        else:
             output += (
                 "\nINSTRUCTION: Analyze the tone, confidence, and specificity of the "
                 "management commentary above. (Note: Only management commentary was found, typical of SEC 8-K filings). "
