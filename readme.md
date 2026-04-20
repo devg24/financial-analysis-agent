@@ -36,7 +36,7 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 
 * **Zero-Hallucination Guardrails:** Worker nodes programmatically verify that a `ToolMessage` was successfully executed before allowing the LLM to output an answer. "Creative guesses" are blocked.
 * **Advanced SEC XBRL Parsing:** Handles the messy reality of SEC EDGAR data with Pandas-driven datetime sorting, deduplication, and recursive GAAP tag fallbacks (e.g., gracefully handling `RevenueFromContract...` vs. `Revenues`).
-* **On-the-Fly Vector Databases:** Automatically downloads, cleans (HTML Regex isolation), chunks, and embeds corporate 10-K filings into a local ChromaDB instance the moment a user asks about corporate risks or supply chains.
+* **Scalable Offline Ingestion Engine:** Automated pipeline that isolates, cleans, and embeds complex 10-K filings (BeautifulSoup/Regex) into local ChromaDB instances offline, enabling sub-second semantic retrieval during live agent queries.
 * **Earnings-Call Analysis:** Two-pipeline architecture — an offline ingest pipeline fetches and segments transcripts (Financial Modeling Prep / SEC 8-K), while the runtime inference pipeline uses RAG retrieval with section (Prepared Remarks / Q&A) and quarter filters. Handles SEC-8 (8-K) fallbacks gracefully even when Q&A is missing.
 
 ---
