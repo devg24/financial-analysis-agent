@@ -183,7 +183,7 @@ The agent can handle single metrics, multi-ticker comparisons, and qualitative d
 
 ## 📊 Benchmarks & Evaluation
 
-We evaluated FinAgent using a **43-item Golden Dataset** (Benchmark V2) comparing its performance to a Vanilla LLM (Llama-4-Scout) without access to tools. Unlike standard benchmarks, our qualitative questions are **anchored to specific, verifiable quotes** from the source documents to prevent hallucination-rewarding.
+I evaluated FinAgent using a **43-item Golden Dataset** (Benchmark V2) comparing its performance to a Vanilla LLM (Llama-4-Scout) without access to tools. Unlike standard benchmarks, my qualitative questions are **anchored to specific, verifiable quotes** from the source documents to prevent hallucination-rewarding.
 
 | Category | Metric | Baseline (Zero-Shot) | FinAgent | Lift |
 | :--- | :--- | :--- | :--- | :--- |
@@ -197,11 +197,11 @@ We evaluated FinAgent using a **43-item Golden Dataset** (Benchmark V2) comparin
 
 ### Key Insights
 *   **Zero-Hallucination Numeric**: FinAgent achieved **100% accuracy** on numeric retrieval across 15 complex XBRL tags. The baseline failed every item, proving that tool-use is mandatory for financial grounding.
-*   **Verifiable Grounding**: By anchoring risk questions to specific 10-K sentences, we eliminated "vague pass" scores. The agent's **+17% lift** represents real, documented facts that the baseline could not "hallucinate" successfully.
+*   **Verifiable Grounding**: By anchoring risk questions to specific 10-K sentences, I eliminated "vague pass" scores. The agent's **+17% lift** represents real, documented facts that the baseline could not "hallucinate" successfully.
 *   **Multi-Agent Synergies**: The agent correctly synthesized earnings call Q&A segments (67% accuracy) that the baseline had no visibility into.
 
 ### Running the Evaluation
-For a deep-dive into our scientific approach, Anchored Ground Truth, and cross-model judging, see our **[Technical Evaluation Methodology](evaluation/evaluation_methodology.md)**.
+For a deep-dive into my scientific approach, Anchored Ground Truth, and cross-model judging, see my **[Technical Evaluation Methodology](evaluation/evaluation_methodology.md)**.
 
 ```bash
 # 1. Run Baseline

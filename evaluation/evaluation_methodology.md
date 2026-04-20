@@ -6,7 +6,7 @@ This document provides a technical deep-dive into the evaluation framework used 
 
 ## 🎯 The Core Philosophy: "Anti-Hallucination Benchmarking"
 
-Most LLM benchmarks fail in financial contexts because they reward "plausible sounding" answers. Our methodology (Benchmark V2) solves this by using **Anchored Ground Truth**:
+Most LLM benchmarks fail in financial contexts because they reward "plausible sounding" answers. My methodology (Benchmark V2) solves this by using **Anchored Ground Truth**:
 1. **Numeric Facts**: Sourced directly from SEC XBRL (official GAAP filings).
 2. **Qualitative Risks**: Sourced from actual sentences extracted from the company's latest 10-K.
 3. **Sentiment**: Tested against specific headlines to measure real-time nuance vs. general training memory.
@@ -15,7 +15,7 @@ Most LLM benchmarks fail in financial contexts because they reward "plausible so
 
 ## 🏗️ Experimental Architecture
 
-We use a **Dual-Model Audit Pattern** to ensure objective results:
+I use a **Dual-Model Audit Pattern** to ensure objective results:
 
 | Role | Model | Framework | Mode |
 | :--- | :--- | :--- | :--- |
@@ -25,7 +25,7 @@ We use a **Dual-Model Audit Pattern** to ensure objective results:
 
 > [!IMPORTANT]
 > **Why Cross-Model Judging?** 
-> Using the same model to act and judge creates "Self-Grading Bias." By using a larger `Llama-3.3-70B` judge for a `17B` actor, we ensure the evaluator is significantly more capable than the system being tested.
+> Using the same model to act and judge creates "Self-Grading Bias." By using a larger `Llama-3.3-70B` judge for a `17B` actor, I ensure the evaluator is significantly more capable than the system being tested.
 
 ---
 
