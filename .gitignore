@@ -20,3 +20,7 @@ Thumbs.db
 
 # other
 .vscode/
+# Evaluation Results
+evaluation/results/
+!evaluation/benchmark_v1.jsonl
+scratch/

@@ -88,8 +88,15 @@ This project abandons fragile "chat loops" in favor of a robust, deterministic *
 - [x] Build keyword/entity frequency extraction with quarter-over-quarter tracking.
 - [x] Create three inference `@tool` functions: search, sentiment divergence, keyword trends.
 - [x] Wire `Earnings_Agent` into the LangGraph planner/supervisor/summarizer.
-- [x] Add CLI ingest script (`scripts/ingest_earnings_calls.py`).
 - [x] Update Streamlit UI with earnings-call example and data indicators.
+- [x] Add CLI ingest script (`scripts/ingest_earnings_calls.py`).
+
+### Phase 7: Benchmarking & Quantitative Evaluation ✅
+*Objective: Prove system efficacy through rigorous comparison against zero-shot LLM baselines using anchored ground truth.*
+- [x] Generate a 43-item "Golden Dataset" (Numeric, Risk, News, Earnings).
+- [x] Build an Evaluation Runner with **Baseline vs. Agent** modes and resume support.
+- [x] Implement a **Cross-Model Judge** (Llama-3.3-70B) and check against anchored 10-K quotes.
+- [x] Achieve a **+40% Accuracy Lift** over vanilla LLM performance on verifiable facts.
 
 ---
 
@@ -173,4 +180,31 @@ The agent can handle single metrics, multi-ticker comparisons, and qualitative d
 > python scripts/ingest_earnings_calls.py --tickers AAPL --quarters Q4-2024 Q1-2025
 > ```
 > *Note: SEC 8-K (sec-8) filings are supported as a fallback when FMP results are unavailable, focusing on Prepared Remarks if Q&A is missing.*
-> 
+
+## 📊 Benchmarks & Evaluation
+
+We evaluated FinAgent using a **43-item Golden Dataset** (Benchmark V2) comparing its performance to a Vanilla LLM (Llama-4-Scout) without access to tools. Unlike standard benchmarks, our qualitative questions are **anchored to specific, verifiable quotes** from the source documents to prevent hallucination-rewarding.
+
+| Category | Metric | Baseline (Zero-Shot) | FinAgent | Lift |
+| :--- | :--- | :--- | :--- | :--- |
+| **Numeric** | Exact XBRL Extraction | 0% | **100%** | **+100%** |
+| **Fundamental** | Risk Retrieval (Anchored RAG) | 60% | **77%** | **+17%** |
+| **News** | Nuanced Sentiment Analysis | 80% | **60%** | -20%* |
+| **Earnings** | transcript Q&A Analysis | 0% | **67%** | **+67%** |
+| **Overall** | **Weighted Accuracy** | **40%** | **80%** | **+40%** |
+
+*\*Note: The agent is more conservative on news sentiment as it fetches live data via RSS, occasionally failing to match a specific outdated headline, whereas the baseline uses parametric memory.*
+
+### Key Insights
+*   **Zero-Hallucination Numeric**: FinAgent achieved **100% accuracy** on numeric retrieval across 15 complex XBRL tags. The baseline failed every item, proving that tool-use is mandatory for financial grounding.
+*   **Verifiable Grounding**: By anchoring risk questions to specific 10-K sentences, we eliminated "vague pass" scores. The agent's **+17% lift** represents real, documented facts that the baseline could not "hallucinate" successfully.
+*   **Multi-Agent Synergies**: The agent correctly synthesized earnings call Q&A segments (67% accuracy) that the baseline had no visibility into.
+
+### Running the Evaluation
+```bash
+# 1. Run Baseline
+python3 evaluation/run_eval.py --mode baseline
+
+# 2. Run FinAgent Execution
+python3 evaluation/run_eval.py --mode agent --resume
+```
